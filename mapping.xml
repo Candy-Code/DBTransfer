@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <global-maps>
+        <column name="id" tar-name="_id"/>
+    </global-maps>
+
+    <entity src-name="users">
+        <column name="uid" tar-name="_id"/>
+    </entity>
+    <entity src-name="resources" var-id="this.id">
+        <column name="resource_item" type="add">
+            <select>select * from resource_items where resource_id=$id</select>
+        </column>
+    </entity>
+    <entity src-name="resource_items" type="exclude"/>
+    <entity src-name="video_old_new" type="exclude"/>
+</configuration>
