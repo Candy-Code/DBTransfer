@@ -38,6 +38,7 @@ public class Transfer {
                 ResultSet records = MySqlHelper.selectAll(mysql_conn,table_name);
                 transfer(records,table_name,mongodb);
             }
+            log.info(String.format("copy %s tables",table_count));
         }catch (Exception e){
             log.error(e);
         }
@@ -53,6 +54,7 @@ public class Transfer {
         }
         return false;
     }
+    private long table_count = 0L;
     private void transfer(ResultSet records,String table_name,DB mongodb){
         try {
             MappingConfiguration configuration = MappingConfiguration.getInstance();
@@ -63,6 +65,7 @@ public class Transfer {
                 return;
             }
             log.info("copy table " + table_name + "....");
+            table_count++;
             //处理具体表名的映射
             EntityMapping entity = configuration.getMappings().get(table_name);
             if(entity!=null && entity.getType().equalsIgnoreCase(R.entity.type.transfer)){
