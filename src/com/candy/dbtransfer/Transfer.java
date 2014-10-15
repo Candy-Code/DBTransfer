@@ -22,11 +22,12 @@ import java.util.regex.Pattern;
 public class Transfer {
     Log log = Log.getLog(Transfer.class);
 
+    Connection mysql_conn = null;
     public void  mysql2mongo(){
 
         MySqlConnector mySqlConnector = new MySqlConnector();
 
-        Connection mysql_conn = mySqlConnector.getConnection();
+        mysql_conn = mySqlConnector.getConnection();
         PropertiesReader p = PropertiesReader.getInstance();
         MongoConnector mongoConnector = new MongoConnector();
         Mongo mongo = mongoConnector.getDb();
@@ -66,7 +67,7 @@ public class Transfer {
             EntityMapping entity = configuration.getMappings().get(table_name);
             if(entity!=null && entity.getType().equalsIgnoreCase(R.entity.type.transfer)){
                 if(!entity.getTar_name().equals(table_name)){
-                    log.info(String.format("transfer table %s to %s",table_name,entity.getTar_name()));
+                    log.debug(String.format("transfer table %s to %s",table_name,entity.getTar_name()));
                     table_name = entity.getTar_name();
                 }
             }
@@ -74,7 +75,7 @@ public class Transfer {
             DBCollection collection = mongodb.getCollection(table_name);
             //添加表
             //add table here
-
+            long records_count = 0L;
             while(records.next()) {
                 BasicDBObject document = new BasicDBObject();
 
@@ -121,10 +122,11 @@ public class Transfer {
                     }
                 }
 
-                log.info("copy record " + document.toString());
-
+                log.debug("copy record " + document.toString());
+                records_count ++;
                 collection.save(document);
             }
+            log.info(String.format("copy %s record ",records_count));
         }catch (SQLException e) {
             log.error(e);
         }
@@ -138,7 +140,7 @@ public class Transfer {
                 if(column.getSrc_name().equalsIgnoreCase(metaData.getColumnName(i))){
                     pair.setKey(column.getTar_name());
                     pair.setValue(getColumnValue(records,i));
-                    log.info(String.format("transfer %s to %s", column.getSrc_name(), column.getTar_name()));
+                    log.debug(String.format("transfer %s to %s", column.getSrc_name(), column.getTar_name()));
                 }
             }else if(R.entity.type.exclude.equalsIgnoreCase(column.getType())){
                 pair = null;
@@ -153,10 +155,10 @@ public class Transfer {
         if(select_expression.contains("$")){
             select_expression = replaceVariables(select_expression,entity.getVariables(),entity,records);
         }
-        MySqlConnector connector = new MySqlConnector();
-        Connection connection = connector.getConnection();
+//        MySqlConnector connector = new MySqlConnector();
+//        Connection connection = connector.getConnection();
         try {
-            PreparedStatement statement = connection.prepareStatement(select_expression);
+            PreparedStatement statement = mysql_conn.prepareStatement(select_expression);
             ResultSet results = statement.executeQuery();
             value = new ArrayList<HashMap<String,Object>>();
             while(results.next()){
@@ -169,9 +171,10 @@ public class Transfer {
             }
         } catch (SQLException e) {
             e.printStackTrace();
-        }finally {
-            IOUtils.close(connection);
         }
+//        finally {
+//            IOUtils.close(connection);
+//        }
         return value;
     }
     public String replaceVariables(String src,Map<String,String> variables,EntityMapping entity,ResultSet records){

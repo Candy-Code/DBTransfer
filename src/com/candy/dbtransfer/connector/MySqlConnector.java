@@ -36,7 +36,7 @@ public class MySqlConnector {
             // 连续数据库
             Connection conn = DriverManager.getConnection(url, user, password);
             if (!conn.isClosed())
-                System.out.println("Succeeded connecting to the Database!");
+                log.debug("Succeeded connecting to the Database!");
             return conn;
         }catch (Exception e){
             log.error(e);
