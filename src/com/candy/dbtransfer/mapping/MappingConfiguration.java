@@ -7,10 +7,7 @@ import org.dom4j.Attribute;
 import org.dom4j.Document;
 import org.dom4j.Element;
 import org.dom4j.Node;
-import org.dom4j.io.SAXReader;
 
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,11 +86,13 @@ public class MappingConfiguration {
         if(StringUtils.isNotBlank(type) && R.column.types.contains(type)){
             columnMapping.setType(type);
         }
+        String data_type = column_ele.attributeValue("data-type");
+        if(StringUtils.isNotBlank(type) && R.column.types.contains(type)){
+            columnMapping.setData_type(data_type);
+        }
         if(R.entity.type.add.equalsIgnoreCase(type)){
-            Element select_ele = (Element)column_ele.selectSingleNode("select");
-            if(select_ele!=null){
-                columnMapping.setSelect(select_ele.getText());
-            }
+            Element value_ele = (Element)column_ele.selectSingleNode("value");
+            columnMapping.setValue(ValueFactory.build(value_ele));
         }
         return columnMapping;
     }

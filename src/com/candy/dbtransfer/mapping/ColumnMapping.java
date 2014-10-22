@@ -1,13 +1,16 @@
 package com.candy.dbtransfer.mapping;
 
+import com.candy.dbtransfer.config.R;
+
 /**
  * Created by yantingjun on 2014/10/14.
  */
 public class ColumnMapping {
     private String src_name;
     private String tar_name;
-    private String type = "transfer";
-    private String select = "";
+    private String type = R.column.default_type;
+    private String data_type = R.column.default_data_type;
+    private Value value;
 
     public ColumnMapping(String src_name, String tar_name) {
         this.src_name = src_name;
@@ -38,11 +41,30 @@ public class ColumnMapping {
         this.type = type;
     }
 
-    public String getSelect() {
-        return select;
+    public Value getValue() {
+        return value;
     }
 
-    public void setSelect(String select) {
-        this.select = select;
+    public void setValue(Value value) {
+        this.value = value;
+    }
+
+    public String getData_type() {
+        return data_type;
+    }
+
+    public void setData_type(String data_type) {
+        this.data_type = data_type;
+    }
+
+    public enum DataType{
+        auto(1),integer(2),bigint(3),time(4),string(5);
+        private int type;
+        DataType(int value){
+            this.type = type;
+        }
+        public int value(){
+            return type;
+        }
     }
 }

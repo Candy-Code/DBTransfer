@@ -3,10 +3,8 @@ package com.candy.dbtransfer;
 import com.candy.dbtransfer.config.R;
 import com.candy.dbtransfer.connector.MongoConnector;
 import com.candy.dbtransfer.connector.MySqlConnector;
-import com.candy.dbtransfer.mapping.ColumnMapping;
-import com.candy.dbtransfer.mapping.EntityMapping;
-import com.candy.dbtransfer.mapping.KeyValuePair;
-import com.candy.dbtransfer.mapping.MappingConfiguration;
+import com.candy.dbtransfer.exception.TooManyRecordsException;
+import com.candy.dbtransfer.mapping.*;
 import com.candy.dbtransfer.property.PropertiesReader;
 import com.candy.dbtransfer.util.*;
 import com.mongodb.*;
@@ -100,7 +98,7 @@ public class Transfer {
 
 
                     if(pair != null && StringUtils.isNotBlank(pair.getKey())){
-                        document.put(pair.getKey(),pair.getValue()==null?"":pair.getValue());
+                        document.put(pair.getKey(),pair.getValue());
                     }
                 }
                 if(document.isEmpty() ){
@@ -110,8 +108,10 @@ public class Transfer {
                 //全局新增字段
                 for (ColumnMapping column : configuration.getGlobal_mappings().getColumnMaps().values()) {
                     if(R.entity.type.add.equalsIgnoreCase(column.getType())){
-                        String select_expression = column.getSelect();
-                        document.put(column.getSrc_name(),executeSelectExpression(select_expression,configuration.getGlobal_mappings(),column,records));
+                        Value value = column.getValue();
+                        document.put(column.getSrc_name(),
+                                executeExpression(value, configuration.getGlobal_mappings(), column, records));
+
                     }
                 }
 
@@ -119,8 +119,9 @@ public class Transfer {
                 if(entity != null){
                     for(ColumnMapping column : entity.getColumnMaps().values()){
                         if(R.entity.type.add.equalsIgnoreCase(column.getType())){
-                            String select_expression = column.getSelect();
-                            document.put(column.getSrc_name(),executeSelectExpression(select_expression,entity,column,records));
+                            Value value = column.getValue();
+                            document.put(column.getSrc_name(),
+                                    executeExpression(value, entity, column, records));
                         }
                     }
                 }
@@ -129,7 +130,7 @@ public class Transfer {
                 records_count ++;
                 collection.save(document);
             }
-            log.info(String.format("copy %s record ",records_count));
+            log.info(String.format("copy %s record ", records_count));
         }catch (SQLException e) {
             log.error(e);
         }
@@ -153,32 +154,91 @@ public class Transfer {
         }
         return pair;
     }
-    private Object executeSelectExpression(String select_expression,EntityMapping entity,ColumnMapping column,ResultSet records){
-        Object value = null;
-        if(select_expression.contains("$")){
-            select_expression = replaceVariables(select_expression,entity.getVariables(),entity,records);
+    private Object executeSql(Value value, EntityMapping entity, ColumnMapping column, ResultSet records){
+        Object result_value = null;
+        String expression = value.getValue();
+        SqlValue sqlValue = (SqlValue)value;
+        if(value.getValue().contains("$")){
+            expression = replaceVariables(expression,entity.getVariables(),entity,records);
         }
-//        MySqlConnector connector = new MySqlConnector();
-//        Connection connection = connector.getConnection();
         try {
-            PreparedStatement statement = mysql_conn.prepareStatement(select_expression);
+            PreparedStatement statement = mysql_conn.prepareStatement(expression);
             ResultSet results = statement.executeQuery();
-            value = new ArrayList<HashMap<String,Object>>();
-            while(results.next()){
-                ResultSetMetaData metaData = results.getMetaData();
-                Map record = new LinkedHashMap();
-                for (int i = 1; i <= metaData.getColumnCount(); i++) {
-                    record.put(metaData.getColumnName(i),getColumnValue(results,i));
-                }
-                ((ArrayList)value).add(record);
+            switch (sqlValue.getResultType()){
+                case list:
+                    result_value = new ArrayList<HashMap<String,Object>>();
+                    while(results.next()){
+                        ResultSetMetaData metaData = results.getMetaData();
+                        Map record = new LinkedHashMap();
+                        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                            record.put(metaData.getColumnLabel(i),
+                                    dataConvert(getColumnValue(results, i),ColumnMapping.DataType.valueOf(column.getData_type())));
+                        }
+                        ((ArrayList)result_value).add(record);
+                    }
+                    break;
+                case record:
+                    if(results.getRow()>1){
+                        throw new TooManyRecordsException("expected single record,exactly "+results.getRow()+" records");
+                    }else if(results.getRow()<0){
+                        result_value = new HashMap();
+                    }else if(results.next()){
+                        ResultSetMetaData metaData = results.getMetaData();
+                        Map record = new LinkedHashMap();
+                        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                            record.put(metaData.getColumnLabel(i),
+                                    dataConvert(getColumnValue(results, i),ColumnMapping.DataType.valueOf(column.getData_type())));
+                        }
+                        result_value = record;
+                    }
+                    break;
+                case column:
+                    if(results.getRow()>1){
+                        throw new TooManyRecordsException("expected single record,exactly "+results.getRow()+" records");
+                    }else if(results.getRow()<0){
+                        result_value = new HashMap();
+                    }else if(results.next()){
+                        result_value = dataConvert(getColumnValue(results,1),ColumnMapping.DataType.valueOf(column.getData_type()));
+                    }
+                    break;
+                default:
+                    break;
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-//        finally {
-//            IOUtils.close(connection);
-//        }
-        return value;
+        return result_value;
+    }
+    private Object executeExpression(Value value, EntityMapping entity, ColumnMapping column, ResultSet records){
+        Object result_value = null;
+        if(value == null){
+            return result_value;
+        }
+        if(value instanceof SqlValue){
+            return executeSql(value,entity,column,records);
+        }else if(value instanceof ExpValue){
+            if(value.getValue().contains("$")){
+                result_value = replaceVariables(value.getValue(),entity.getVariables(),entity,records);
+            }
+        }
+
+        return result_value;
+    }
+    private Object dataConvert(Object data,ColumnMapping.DataType type){
+        switch (type){
+            case auto:
+                return data;
+            case bigint:
+                return Long.parseLong(data+"");
+            case integer:
+                return Integer.parseInt(data+"");
+            case time:
+                return TimeUtils.parse(data+"");
+            case string:
+                return data+"";
+            default:
+                return data;
+        }
     }
     public String replaceVariables(String src,Map<String,String> variables,EntityMapping entity,ResultSet records){
         Pattern pattern = Pattern.compile("\\$([^\\?,\\]\\}\\s}]+)");
@@ -216,6 +276,26 @@ public class Transfer {
                     return LeapDateUtils.formatYMDHMS(resultSet.getTimestamp(i));
                 case Types.DATE:
                     return LeapDateUtils.formatYMDHMS(resultSet.getDate(i));
+                case Types.TINYINT:
+                    if(resultSet.getObject(i)==null){
+                        return 0;
+                    }
+                    return resultSet.getInt(i);
+                case Types.INTEGER:
+                    if(resultSet.getObject(i)==null){
+                        return 0;
+                    }
+                    return resultSet.getInt(i);
+                case Types.BIGINT:
+                    if(resultSet.getObject(i)==null){
+                        return 0;
+                    }
+                    return resultSet.getLong(i);
+                case Types.FLOAT:
+                    if(resultSet.getObject(i)==null){
+                        return 0.0;
+                    }
+                    return resultSet.getObject(i);
                 default:
                     return resultSet.getObject(i);
             }

@@ -34,11 +34,23 @@ public class R {
     }
     public static class column{
         public static List<String> types = Arrays.asList("add","transfer","exclude");
+        public static String default_type = "transfer";
+        public static String default_data_type = "auto";
         public static class type{
             public static String add = "add";
             public static String transfer = "transfer";
             public static String exclude = "exclude";
         }
+        public static class data_type{
+            public static String auto = "auto";
+            public static String integer = "integer";
+            public static String string = "string";
+            public static String time = "time";
+        }
 
+    }
+    public static class value{
+        public static final String sql = "sql";
+        public static final String exp = "exp";
     }
 }
