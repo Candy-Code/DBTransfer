@@ -12,14 +12,17 @@
     </entity>
     <entity src-name="resources" var-id="this.id">
         <column name="resource_item" type="add" data-type="auto">
-            <value type="sql">select `id` as `_id`,
+            <value type="sql">
+                <select result-type="list">
+                select `id` as `_id`,
                 `item_id`,`item_type`,`item_subtitle`,`item_title`,`item_desc`,
                 `channel_id`,`order`,`item_link`,`image_url`,`status`,`create_at`,`update_at`,`bgcolor`
                 from resource_items where resource_id=$id
+                </select>
             </value>
         </column>
     </entity>
-    <entity src-name="my_course" tar-name="learn_path" var-create_at="this.create_at" var-id="this.id" var-uid="this.uid" var-course_id="this.course_id">
+    <entity src-name="my_course" tar-name="learn_paths" var-create_at="this.create_at" var-id="this.id" var-uid="this.uid" var-course_id="this.course_id">
         <column name="video_progresses" type="add" data-type="auto">
             <value type="sql">
                 <select result-type="list">
@@ -31,6 +34,9 @@
         <column name="update_at" type="add" data-type="auto">
             <value type="exp">$create_at</value>
         </column>
+    </entity>
+    <entity src-name="notes_reply">
+        <column name="notesId" tar-name="note_id"></column>
     </entity>
     <entity src-name="video_progress" type="exclude"/>
     <entity src-name="resource_items" type="exclude"/>
