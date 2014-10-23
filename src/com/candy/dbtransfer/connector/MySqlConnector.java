@@ -6,7 +6,6 @@ import com.candy.dbtransfer.util.Log;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.Statement;
 
 /**
  * Created by yantingjun on 2014/10/14.
@@ -14,7 +13,7 @@ import java.sql.Statement;
 public class MySqlConnector {
     Log log = Log.getLog(MySqlConnector.class);
 
-    public Connection getConnection(){
+    public Connection getConnection(String dbname){
         PropertiesReader p = PropertiesReader.getInstance();
 
         // 驱动程序名
@@ -22,6 +21,8 @@ public class MySqlConnector {
 
         // URL指向要访问的数据库名scutcs
         String url = p.getValue("mysql.url");
+
+        url = url.replaceAll("\\$\\{dbname\\}",dbname);
 
         // MySQL配置时的用户名
         String user = p.getValue("mysql.username");

@@ -21,15 +21,15 @@ public class Transfer {
     Log log = Log.getLog(Transfer.class);
 
     Connection mysql_conn = null;
-    public void  mysql2mongo(){
+    public void  mysql2mongo(String src_db,String tar_db){
 
         MySqlConnector mySqlConnector = new MySqlConnector();
 
-        mysql_conn = mySqlConnector.getConnection();
+        mysql_conn = mySqlConnector.getConnection(src_db);
         PropertiesReader p = PropertiesReader.getInstance();
         MongoConnector mongoConnector = new MongoConnector();
         Mongo mongo = mongoConnector.getDb();
-        DB mongodb = mongo.getDB((String)p.getValue("mongo.db"));
+        DB mongodb = mongo.getDB(tar_db);
 
         try{
             for(String table_name : MySqlHelper.getTables(mysql_conn)){
@@ -305,6 +305,14 @@ public class Transfer {
         }
     }
     public static void main(String[] args) {
-       new Transfer().mysql2mongo();
+        if(args == null && args.length < 2){
+            printHelp();
+            return;
+        }
+       new Transfer().mysql2mongo(args[0],args[1]);
+    }
+
+    private static void printHelp() {
+        System.out.println("dbtransfer src_name tar_name");
     }
 }
