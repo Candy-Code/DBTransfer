@@ -305,7 +305,7 @@ public class Transfer {
         }
     }
     public static void main(String[] args) {
-        if(args == null && args.length < 2){
+        if(args == null || args.length < 2){
             printHelp();
             return;
         }
@@ -313,6 +313,7 @@ public class Transfer {
     }
 
     private static void printHelp() {
+        System.out.println("Miss required args!");
         System.out.println("dbtransfer src_name tar_name");
     }
 }
